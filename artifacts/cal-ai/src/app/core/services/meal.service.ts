@@ -7,7 +7,7 @@ import { Meal, ScanMealResponse, PagedMeals, FoodItem } from '../models/meal.mod
 export class MealService {
   private readonly API = '/api/meals';
 
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient) { }
 
   scanMeal(file: File, mealType: string, notes?: string): Observable<ScanMealResponse> {
     const form = new FormData();
@@ -47,5 +47,9 @@ export class MealService {
 
   getMealStatus(id: number): Observable<Meal> {
     return this.http.get<Meal>(`${this.API}/${id}/status`);
+  }
+
+  retryAnalysis(id: number): Observable<Meal> {
+    return this.http.post<Meal>(`${this.API}/${id}/retry`, {});
   }
 }

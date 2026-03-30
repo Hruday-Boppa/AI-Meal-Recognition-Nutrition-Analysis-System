@@ -3,6 +3,8 @@ server:
   servlet:
     context-path: /api
 
+DATABASE_URL: "postgresql://postgres:hruday@localhost:5432/postgres"
+
 spring:
   jpa:
     hibernate:
@@ -16,16 +18,24 @@ spring:
     serialization:
       write-dates-as-timestamps: false
     default-property-inclusion: non_null
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 12MB
 
 app:
   jwt:
     secret: ${JWT_SECRET:calai-super-secret-key-for-jwt-tokens-minimum-32-chars-long}
     expiration: 86400000
-  openai:
-    api-key: ${OPENAI_API_KEY:}
-    api-url: https://api.openai.com/v1
+  ollama:
+    api-url: ${OLLAMA_API_URL:http://localhost:11434/api/generate}
+    model: ${OLLAMA_MODEL:qwen2.5vl:7b}
   upload:
     dir: ./uploads
+
+  rate-limit:
+    scans-per-5min: 10
+    requests-per-min: 50
 
 logging:
   level:

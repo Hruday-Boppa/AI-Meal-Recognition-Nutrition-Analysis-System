@@ -14,181 +14,251 @@ import { Meal } from '../../core/models/meal.model';
   imports: [CommonModule, RouterLink, NavComponent],
   template: `
     <app-nav></app-nav>
-    <div class="page">
-      <div class="container">
+    <div class="page animate-in">
+      <div class="container dash-container">
 
-        <!-- Greeting -->
-        <div class="greeting mb-6">
-          <h2>Good {{ timeOfDay }}, {{ firstName }} 👋</h2>
-          <p class="text-muted">{{ today | date:'EEEE, MMMM d' }}</p>
-        </div>
+        <!-- Header -->
+        <header class="dash-header mb-10">
+          <div class="header-left">
+            <h1 class="h1">Hello, {{ firstName }}!</h1>
+            <p class="text-muted font-medium">It's a beautiful {{ timeOfDay }} to stay healthy.</p>
+          </div>
+          <div class="header-right hide-mobile">
+            <span class="date-badge glass-card">{{ today | date:'EEEE, MMM d' }}</span>
+          </div>
+        </header>
 
-        <!-- Stats cards -->
-        <div class="stats-grid mb-6" *ngIf="!loadingStats">
-          <div class="stat-card card">
-            <div class="stat-label">Calories Today</div>
-            <div class="stat-value">{{ stats?.totalCalories ?? 0 }}</div>
-            <div class="stat-sub text-muted">/ {{ stats?.calorieGoal ?? 2000 }} goal</div>
-            <div class="progress-bar mt-3">
-              <div class="progress-fill" [style.width.%]="caloriePercent" [class.over]="caloriePercent > 100"></div>
+        <!-- Main Stats Hub -->
+        <div class="stats-hub glass-card mb-8">
+          <div class="main-ring-area">
+            <div class="progress-container">
+              <svg class="progress-ring" viewBox="0 0 100 100">
+                <circle class="ring-bg" cx="50" cy="50" r="45" />
+                <circle class="ring-fill" cx="50" cy="50" r="45" pathLength="100" 
+                        [style.stroke-dashoffset]="100 - caloriePercent" />
+              </svg>
+              <div class="progress-text">
+                <span class="val">{{ stats?.totalCalories ?? 0 }}</span>
+                <span class="label">of {{ stats?.calorieGoal ?? 2000 }} kcal</span>
+              </div>
+            </div>
+            <div class="quick-stats">
+              <div class="q-stat">
+                <span class="q-val" [class.text-danger]="(stats?.remainingCalories ?? 0) < 0">
+                  {{ stats?.remainingCalories ?? (stats?.calorieGoal ?? 2000) }}
+                </span>
+                <span class="q-label">Left</span>
+              </div>
+              <div class="q-divider"></div>
+              <div class="q-stat">
+                <span class="q-val">{{ stats?.mealsCount ?? 0 }}</span>
+                <span class="q-label">Meals</span>
+              </div>
             </div>
           </div>
 
-          <div class="stat-card card">
-            <div class="stat-label">Remaining</div>
-            <div class="stat-value" [class.text-danger]="(stats?.remainingCalories ?? 0) < 0">
-              {{ stats?.remainingCalories ?? (stats?.calorieGoal ?? 2000) }}
-            </div>
-            <div class="stat-sub text-muted">calories left</div>
-          </div>
-
-          <div class="stat-card card">
-            <div class="stat-label">Meals Logged</div>
-            <div class="stat-value">{{ stats?.mealsCount ?? 0 }}</div>
-            <div class="stat-sub text-muted">today</div>
-          </div>
-        </div>
-
-        <!-- Loading skeleton -->
-        <div class="stats-grid mb-6" *ngIf="loadingStats">
-          <div class="stat-card card skeleton" *ngFor="let i of [1,2,3]">
-            <div class="skel-line"></div><div class="skel-line skel-short"></div>
-          </div>
-        </div>
-
-        <!-- Macros -->
-        <div class="card macro-card mb-6" *ngIf="stats">
-          <div class="macro-title font-semibold mb-4">Today's Macros</div>
-          <div class="macros">
-            <div class="macro-item">
-              <div class="macro-header">
-                <span class="macro-dot protein-bg"></span>
-                <span class="text-sm font-medium">Protein</span>
+          <div class="macro-strips">
+            <div class="macro-strip">
+              <div class="strip-info">
+                <span class="dot protein-bg"></span>
+                <span class="name">Protein</span>
+                <span class="target">Goal 150g</span>
+                <span class="amount">{{ stats?.totalProtein ?? 0 }}g</span>
               </div>
-              <div class="macro-value protein-color">{{ stats.totalProtein }}g</div>
+              <div class="strip-bar"><div class="fill protein-bg" [style.width.%]="proteinPct"></div></div>
             </div>
-            <div class="macro-item">
-              <div class="macro-header">
-                <span class="macro-dot carbs-bg"></span>
-                <span class="text-sm font-medium">Carbs</span>
+            <div class="macro-strip">
+              <div class="strip-info">
+                <span class="dot carbs-bg"></span>
+                <span class="name">Carbs</span>
+                <span class="target">Goal 250g</span>
+                <span class="amount">{{ stats?.totalCarbs ?? 0 }}g</span>
               </div>
-              <div class="macro-value carbs-color">{{ stats.totalCarbs }}g</div>
+              <div class="strip-bar"><div class="fill carbs-bg" [style.width.%]="carbsPct"></div></div>
             </div>
-            <div class="macro-item">
-              <div class="macro-header">
-                <span class="macro-dot fats-bg"></span>
-                <span class="text-sm font-medium">Fats</span>
+            <div class="macro-strip">
+              <div class="strip-info">
+                <span class="dot fats-bg"></span>
+                <span class="name">Fats</span>
+                <span class="target">Goal 70g</span>
+                <span class="amount">{{ stats?.totalFats ?? 0 }}g</span>
               </div>
-              <div class="macro-value fats-color">{{ stats.totalFats }}g</div>
+              <div class="strip-bar"><div class="fill fats-bg" [style.width.%]="fatsPct"></div></div>
             </div>
           </div>
         </div>
 
-        <!-- Recent meals -->
-        <div class="section-header mb-3">
-          <h3 class="font-semibold">Recently Logged</h3>
-          <a routerLink="/food-database" class="text-primary text-sm font-medium">+ Add food</a>
-        </div>
+        <!-- Recent Activity -->
+        <section class="activity-section">
+          <div class="section-top flex items-center justify-between mb-4">
+            <h2 class="h2">Today's Log</h2>
+            <a routerLink="/food-database" class="add-btn">
+              <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+              Quick Add
+            </a>
+          </div>
 
-        <div *ngIf="loadingMeals" class="card p-4">
-          <div class="skel-meal" *ngFor="let i of [1,2,3]"></div>
-        </div>
+          <div *ngIf="loadingMeals" class="loading-meals">
+            <div class="skel-meal glass-card animate-pulse" *ngFor="let i of [1,2,3]"></div>
+          </div>
 
-        <div *ngIf="!loadingMeals && meals.length === 0" class="empty-state card">
-          <div class="empty-icon">🍽️</div>
-          <p class="font-semibold">No meals logged today</p>
-          <p class="text-muted text-sm">Scan a meal or search the food database to get started</p>
-          <a routerLink="/scan" class="btn btn-primary mt-4">
-            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-            Scan Meal
-          </a>
-        </div>
-
-        <div class="meals-list" *ngIf="!loadingMeals && meals.length > 0">
-          <a class="meal-card card" *ngFor="let meal of meals" [routerLink]="['/meals', meal.id]">
-            <div class="meal-img-wrap" *ngIf="meal.imageUrl">
-              <img [src]="meal.imageUrl" [alt]="meal.name" class="meal-img" (error)="onImgError($event)">
+          <div *ngIf="!loadingMeals && meals.length === 0" class="empty-hub glass-card">
+            <div class="empty-visual">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/><path d="M21 5c0 1.66-4 3-9 3S3 6.66 3 5s4-3 9-3 9 1.34 9 3z"/></svg>
             </div>
-            <div class="meal-no-img" *ngIf="!meal.imageUrl">🍽️</div>
-            <div class="meal-info">
-              <div class="meal-name font-semibold">{{ meal.name }}</div>
-              <div class="meal-meta text-muted text-sm">
-                {{ meal.loggedAt | date:'h:mm a' }} · {{ meal.mealType | titlecase }}
-              </div>
-              <div class="meal-macros text-sm mt-1">
-                <span class="protein-color">🥩 {{ meal.protein }}g</span>
-                <span class="carbs-color">🌾 {{ meal.carbs }}g</span>
-                <span class="fats-color">💧 {{ meal.fats }}g</span>
-              </div>
-            </div>
-            <div class="meal-cals">
-              <span class="fire">🔥</span>
-              <span class="cal-num font-bold">{{ meal.calories }}</span>
-              <span class="cal-label text-muted text-xs">cal</span>
-            </div>
-            <div class="meal-status badge badge-yellow" *ngIf="meal.analysisStatus === 'PROCESSING'">Processing</div>
-          </a>
-        </div>
+            <h3 class="h3">Nothing logged today</h3>
+            <p class="text-muted">Start fresh and log your first meal of the day.</p>
+            <a routerLink="/scan" class="btn btn-primary mt-6">Scan Your Meal</a>
+          </div>
 
+          <div class="activity-list" *ngIf="!loadingMeals && meals.length > 0">
+            <div class="meal-row glass-card" *ngFor="let meal of meals">
+              <a [routerLink]="['/meals', meal.id]" class="meal-link">
+                <div class="image-box">
+                  <img *ngIf="meal.imageUrl" [src]="meal.imageUrl" [alt]="meal.name" (error)="onImgError($event)">
+                  <div *ngIf="!meal.imageUrl" class="no-img-placeholder">🍲</div>
+                  <div class="meal-time-badge">{{ meal.loggedAt | date:'h:mm' }}</div>
+                </div>
+                
+                <div class="details">
+                  <div class="top-row">
+                    <span class="meal-type">{{ meal.mealType | titlecase }}</span>
+                    <span class="meal-status-pill" [class]="meal.analysisStatus" *ngIf="meal.analysisStatus !== 'COMPLETED'">
+                      {{ meal.analysisStatus | lowercase }}
+                    </span>
+                  </div>
+                  <h4 class="meal-title font-bold">{{ meal.name }}</h4>
+                  <div class="macro-pills">
+                    <span class="p-pill">P: {{ meal.protein }}g</span>
+                    <span class="c-pill">C: {{ meal.carbs }}g</span>
+                    <span class="f-pill">F: {{ meal.fats }}g</span>
+                  </div>
+                </div>
+
+                <div class="calories">
+                  <span class="val">{{ meal.calories }}</span>
+                  <span class="unit">kcal</span>
+                </div>
+              </a>
+            </div>
+          </div>
+        </section>
       </div>
 
-      <!-- FAB -->
-      <a routerLink="/scan" class="fab">
-        <svg width="26" height="26" fill="none" stroke="white" stroke-width="2.5" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      <!-- Floating Action Button -->
+      <a routerLink="/scan" class="main-fab" title="Scan new meal">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M12 5v14M5 12h14"/></svg>
       </a>
     </div>
   `,
   styles: [`
-    .page { padding-bottom: 80px; }
-    .container { max-width: 700px; margin: 0 auto; padding: 24px 20px; }
-    .greeting h2 { font-size: 22px; font-weight: 700; margin: 0 0 4px; color: #111827; }
-    .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
-    .stat-card { padding: 20px; }
-    .stat-label { font-size: 12px; font-weight: 600; color: #9ca3af; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 8px; }
-    .stat-value { font-size: 32px; font-weight: 700; color: #111827; line-height: 1; }
-    .stat-sub { font-size: 13px; margin-top: 4px; }
-    .progress-bar { height: 6px; background: #f3f4f6; border-radius: 3px; overflow: hidden; }
-    .progress-fill { height: 100%; background: #22c55e; border-radius: 3px; transition: width .5s ease; max-width: 100%; }
-    .progress-fill.over { background: #ef4444; }
-    .macro-card { padding: 20px; }
-    .macros { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
-    .macro-item { text-align: center; }
-    .macro-header { display: flex; align-items: center; justify-content: center; gap: 6px; margin-bottom: 8px; }
-    .macro-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
-    .macro-value { font-size: 22px; font-weight: 700; }
-    .section-header { display: flex; align-items: center; justify-content: space-between; }
-    .section-header h3 { font-size: 17px; margin: 0; }
-    .meals-list { display: flex; flex-direction: column; gap: 10px; }
-    .meal-card {
-      display: flex; align-items: center; gap: 14px; padding: 14px 16px;
-      text-decoration: none; color: inherit; transition: box-shadow .2s;
+    .dash-container { max-width: 900px; padding-top: 40px; padding-bottom: 120px; }
+    .dash-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 48px; }
+    .date-badge { padding: 10px 24px; border-radius: 100px; font-weight: 700; color: var(--primary); font-size: 14px; box-shadow: var(--shadow-sm); }
+
+    /* Stats Hub Redesign */
+    .stats-hub {
+      display: grid; grid-template-columns: 1fr 300px; gap: 40px;
+      padding: 32px; border-radius: 32px;
+      background: linear-gradient(135deg, rgba(255,255,255,0.8) 0%, rgba(255,255,255,0.4) 100%);
     }
-    .meal-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,.08); }
-    .meal-img-wrap { width: 60px; height: 60px; border-radius: 10px; overflow: hidden; flex-shrink: 0; }
-    .meal-img { width: 100%; height: 100%; object-fit: cover; }
-    .meal-no-img { width: 60px; height: 60px; border-radius: 10px; background: #f3f4f6; display: flex; align-items: center; justify-content: center; font-size: 24px; flex-shrink: 0; }
-    .meal-info { flex: 1; min-width: 0; }
-    .meal-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .meal-macros { display: flex; gap: 8px; }
-    .meal-cals { display: flex; flex-direction: column; align-items: center; flex-shrink: 0; }
-    .fire { font-size: 18px; }
-    .cal-num { font-size: 20px; line-height: 1; }
-    .meal-status { margin-left: 8px; }
-    .empty-state { padding: 48px 24px; text-align: center; }
-    .empty-icon { font-size: 48px; margin-bottom: 16px; }
-    .fab {
-      position: fixed; bottom: 24px; right: 24px;
-      width: 58px; height: 58px; background: #22c55e;
-      border-radius: 50%; display: flex; align-items: center; justify-content: center;
-      box-shadow: 0 4px 20px rgba(34,197,94,.45); z-index: 50;
+    .main-ring-area { display: flex; align-items: center; gap: 32px; }
+    
+    .progress-container { position: relative; width: 140px; height: 140px; flex-shrink: 0; }
+    .progress-ring { width: 100%; height: 100%; }
+    .ring-bg { fill: none; stroke: var(--surface-secondary); stroke-width: 8; }
+    .ring-fill { 
+      fill: none; stroke: var(--primary); stroke-width: 8; stroke-linecap: round;
+      stroke-dasharray: 100;
+      stroke-dashoffset: 100;
+      transition: stroke-dashoffset 1s ease-out;
     }
-    .fab:hover { background: #16a34a; }
-    .skeleton { animation: pulse 1.5s ease-in-out infinite; }
-    .skel-line { height: 16px; background: #e5e7eb; border-radius: 4px; margin-bottom: 10px; }
-    .skel-short { width: 60%; }
-    .skel-meal { height: 60px; background: #f3f4f6; border-radius: 8px; margin-bottom: 10px; }
-    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.5} }
-    @media (max-width: 600px) { .stats-grid { grid-template-columns: 1fr 1fr; } .stat-value { font-size: 24px; } }
+    .progress-text {
+      position: absolute; inset: 0; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; text-align: center;
+    }
+    .progress-text .val { font-size: 28px; font-weight: 800; line-height: 1; color: var(--text-main); }
+    .progress-text .label { font-size: 11px; font-weight: 600; color: var(--text-muted); margin-top: 4px; }
+
+    .quick-stats { display: flex; gap: 24px; align-items: center; }
+    .q-stat { display: flex; flex-direction: column; }
+    .q-val { font-size: 24px; font-weight: 800; color: var(--text-main); }
+    .q-label { font-size: 12px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; }
+    .q-divider { width: 1px; height: 32px; background: var(--border); }
+
+    .macro-strips { display: flex; flex-direction: column; gap: 16px; justify-content: center; }
+    .macro-strip { display: flex; flex-direction: column; gap: 6px; }
+    .strip-info { display: flex; align-items: center; justify-content: space-between; font-size: 13px; font-weight: 700; }
+    .strip-info .name { color: var(--text-muted); flex: 1; margin-left: 8px; }
+    .strip-info .target { font-size: 11px; color: var(--text-muted); opacity: 0.7; margin-right: 12px; font-weight: 500; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; }
+    .strip-bar { height: 6px; background: var(--surface-secondary); border-radius: 10px; overflow: hidden; }
+    .strip-bar .fill { height: 100%; border-radius: 10px; }
+
+    /* Activity List Redesign */
+    .add-btn {
+      display: flex; align-items: center; gap: 8px; padding: 10px 18px;
+      background: var(--primary-soft); color: var(--primary);
+      border-radius: 12px; font-weight: 700; font-size: 14px; transition: var(--transition);
+    }
+    .add-btn:hover { background: var(--primary); color: white; }
+
+    .meal-row { margin-bottom: 16px; transition: var(--transition); overflow: hidden; }
+    .meal-row:hover { transform: scale(1.01); }
+    .meal-link { display: grid; grid-template-columns: 80px 1fr 100px; align-items: center; padding: 12px; color: inherit; }
+    
+    .image-box { position: relative; width: 80px; height: 80px; border-radius: 16px; overflow: hidden; background: var(--surface-secondary); }
+    .image-box img { width: 100%; height: 100%; object-fit: cover; }
+    .no-img-placeholder { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 32px; }
+    .meal-time-badge {
+      position: absolute; bottom: 4px; right: 4px; padding: 2px 6px;
+      background: rgba(0,0,0,0.5); color: white; font-size: 9px; font-weight: 700;
+      border-radius: 6px; backdrop-filter: blur(4px);
+    }
+
+    .details { padding: 0 20px; }
+    .meal-title { font-size: 18px; margin: 4px 0 8px; color: var(--text-main); }
+    .top-row { display: flex; align-items: center; gap: 10px; }
+    .meal-type { font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--primary); letter-spacing: 0.5px; }
+    .meal-status-pill { font-size: 9px; font-weight: 800; padding: 2px 8px; border-radius: 100px; text-transform: uppercase; }
+    .meal-status-pill.PENDING { background: var(--surface-secondary); color: var(--text-muted); }
+    .meal-status-pill.PROCESSING { background: #fef3c7; color: #92400e; animation: pulse 1.5s infinite; }
+
+    .macro-pills { display: flex; gap: 12px; }
+    .macro-pills span { font-size: 12px; font-weight: 600; }
+    .p-pill { color: var(--protein); }
+    .c-pill { color: var(--carbs); }
+    .f-pill { color: var(--fats); }
+
+    .calories { display: flex; flex-direction: column; align-items: center; text-align: center; }
+    .calories .val { font-size: 24px; font-weight: 800; color: var(--text-main); line-height: 1; }
+    .calories .unit { font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; }
+
+    /* Empty Hub */
+    .empty-hub { padding: 60px 20px; text-align: center; display: flex; flex-direction: column; align-items: center; }
+    .empty-visual { width: 80px; height: 80px; color: var(--primary); margin-bottom: 24px; opacity: 0.5; }
+
+    .main-fab {
+      position: fixed; bottom: 32px; right: 32px; width: 64px; height: 64px;
+      background: var(--primary); color: white; border-radius: 22px;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 12px 32px rgba(16, 185, 129, 0.4); z-index: 100;
+      transition: var(--transition);
+    }
+    .main-fab:hover { transform: scale(1.1) rotate(90deg); }
+    .main-fab svg { width: 30px; height: 30px; }
+
+    @keyframes pulse { 0% { opacity: 0.6; } 50% { opacity: 1; } 100% { opacity: 0.6; } }
+
+    @media (max-width: 850px) {
+      .stats-hub { grid-template-columns: 1fr; gap: 32px; }
+    }
+    @media (max-width: 600px) {
+      .main-ring-area { flex-direction: column; text-align: center; }
+      .meal-link { grid-template-columns: 70px 1fr; }
+      .calories { display: none; }
+      .meal-row .val { display: block; margin-top: 4px; font-size: 14px; }
+    }
   `]
 })
 export class DashboardComponent implements OnInit {
@@ -211,8 +281,12 @@ export class DashboardComponent implements OnInit {
   }
   get caloriePercent(): number {
     if (!this.stats || !this.stats.calorieGoal) return 0;
-    return Math.round((this.stats.totalCalories / this.stats.calorieGoal) * 100);
+    return Math.min(100, Math.round((this.stats.totalCalories / this.stats.calorieGoal) * 100));
   }
+
+  get proteinPct(): number { return this.stats ? Math.min(100, (this.stats.totalProtein / 150) * 100) : 0; }
+  get carbsPct(): number { return this.stats ? Math.min(100, (this.stats.totalCarbs / 250) * 100) : 0; }
+  get fatsPct(): number { return this.stats ? Math.min(100, (this.stats.totalFats / 70) * 100) : 0; }
 
   ngOnInit(): void {
     this.dashService.getDaily().subscribe({

@@ -23,10 +23,6 @@ public class FoodController {
         return ResponseEntity.ok(results);
     }
 
-    @GetMapping("/healthz")
-    public ResponseEntity<String> health() {
-        return ResponseEntity.ok("ok");
-    }
 
     private static List<Map<String, Object>> buildFoodDatabase() {
         List<Map<String, Object>> db = new ArrayList<>();

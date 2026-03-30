@@ -1,0 +1,35 @@
+# Java (Spring Boot)
+**/target/
+**/*.class
+**/*.jar
+**/*.war
+**/*.ear
+
+# Angular (Frontend)
+**/node_modules/
+**/dist/
+**/tmp/
+**/.angular/
+
+# IDEs
+.idea/
+.vscode/
+*.iml
+*.iws
+*.ipr
+.settings/
+.classpath
+.project
+
+# Local Data & Uploads
+**/uploads/
+**/storage/
+**/*.log
+
+# Operating System
+.DS_Store
+Thumbs.db
+
+# Secrets (Make sure to use environment variables for these)
+**/application.yml.local
+**/application.properties.local

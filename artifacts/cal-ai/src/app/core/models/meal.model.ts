@@ -25,7 +25,7 @@ export interface Meal {
   confidence?: number;
   analysisStatus: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
   mealType: 'BREAKFAST' | 'LUNCH' | 'DINNER' | 'SNACK';
-  ingredients?: Ingredient[];
+  ingredients?: string;
   loggedAt: string;
   notes?: string;
 }

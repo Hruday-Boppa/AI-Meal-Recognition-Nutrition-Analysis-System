@@ -84,4 +84,11 @@ public class MealController {
             @RequestBody Map<String, Object> body) {
         return ResponseEntity.ok(mealService.logFood(principal.getUser(), body));
     }
+
+    @PostMapping("/{id}/retry")
+    public ResponseEntity<MealDto> retryAnalysis(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable Long id) throws IOException {
+        return ResponseEntity.ok(mealService.retryAnalysis(principal.getUser(), id));
+    }
 }

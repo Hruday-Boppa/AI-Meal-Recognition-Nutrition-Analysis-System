@@ -10,44 +10,69 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.io.File;
+import com.calai.util.ImageUtils;
+import com.calai.service.storage.StorageService;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.Base64;
 import java.util.Map;
-import java.util.UUID;
+import java.util.Set;
 
 @Service
+@Transactional
 public class MealService {
+
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(MealService.class);
 
     @Value("${app.upload.dir:./uploads}")
     private String uploadDir;
 
-    @Value("${app.base-url:}")
+    @Value("${app.base-url:http://localhost:8080}")
     private String baseUrl;
 
     private final MealRepository mealRepository;
     private final AiAnalysisService aiAnalysisService;
+    private final StorageService storageService;
 
-    public MealService(MealRepository mealRepository, AiAnalysisService aiAnalysisService) {
+    public MealService(MealRepository mealRepository, AiAnalysisService aiAnalysisService, StorageService storageService) {
         this.mealRepository = mealRepository;
         this.aiAnalysisService = aiAnalysisService;
+        this.storageService = storageService;
     }
 
+    private static final Set<String> ALLOWED_TYPES = Set.of("image/jpeg", "image/png", "image/jpg");
+
     public Map<String, Object> scanMeal(User user, MultipartFile image, String mealType, String notes) throws IOException {
-        String filename = UUID.randomUUID() + "_" + image.getOriginalFilename();
-        Path dir = Paths.get(uploadDir);
-        if (!dir.toFile().exists()) dir.toFile().mkdirs();
-        Path filePath = dir.resolve(filename);
-        Files.write(filePath, image.getBytes());
+        // --- Validate file type ---
+        String contentType = image.getContentType();
+        if (contentType == null || !ALLOWED_TYPES.contains(contentType.toLowerCase())) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                org.springframework.http.HttpStatus.BAD_REQUEST,
+                "Only JPG and PNG images are allowed");
+        }
+        contentType = contentType.toLowerCase();
+
+        // --- Compress & resize ---
+        byte[] rawBytes = image.getBytes();
+        byte[] imageBytes;
+        try {
+            imageBytes = ImageUtils.compressAndResize(rawBytes, contentType);
+        } catch (IOException e) {
+            log.warn("Image compression failed, using original: {}", e.getMessage());
+            imageBytes = rawBytes;
+        }
+
+        // --- Save via StorageService ---
+        String filename = storageService.store(imageBytes, String.valueOf(user.getId()), "meal.jpg");
+
+        // URL points to our secure /api/images endpoint
+        String imageUrl = baseUrl + "/api/images/" + user.getId() + "/" + filename;
 
         Meal meal = new Meal();
         meal.setUser(user);
@@ -55,12 +80,12 @@ public class MealService {
         meal.setAnalysisStatus(Meal.AnalysisStatus.PENDING);
         meal.setMealType(parseMealType(mealType));
         if (notes != null && !notes.isBlank()) meal.setNotes(notes);
-        meal.setImageUrl("/uploads/" + filename);
+        meal.setImageUrl(imageUrl);
         mealRepository.save(meal);
 
-        String base64 = Base64.getEncoder().encodeToString(image.getBytes());
-        String mimeType = image.getContentType() != null ? image.getContentType() : "image/jpeg";
-        aiAnalysisService.analyzeMealAsync(meal.getId(), base64, mimeType);
+        String base64 = Base64.getEncoder().encodeToString(imageBytes);
+        log.info("Triggering async AI analysis for meal ID: {}", meal.getId());
+        aiAnalysisService.analyzeMealAsync(meal.getId(), base64, "image/jpeg");
 
         return Map.of("meal", MealDto.from(meal), "message", "Meal uploaded and being analyzed");
     }
@@ -94,9 +119,28 @@ public class MealService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
         if (!meal.getUser().getId().equals(user.getId()))
             throw new ResponseStatusException(HttpStatus.FORBIDDEN);
+        
         if (updates.containsKey("name")) meal.setName((String) updates.get("name"));
         if (updates.containsKey("notes")) meal.setNotes((String) updates.get("notes"));
         if (updates.containsKey("mealType")) meal.setMealType(parseMealType((String) updates.get("mealType")));
+        
+        if (updates.containsKey("calories")) {
+            Object val = updates.get("calories");
+            if (val instanceof Number) meal.setCalories(((Number) val).intValue());
+        }
+        if (updates.containsKey("protein")) {
+            Object val = updates.get("protein");
+            if (val instanceof Number) meal.setProtein(((Number) val).doubleValue());
+        }
+        if (updates.containsKey("carbs")) {
+            Object val = updates.get("carbs");
+            if (val instanceof Number) meal.setCarbs(((Number) val).doubleValue());
+        }
+        if (updates.containsKey("fats")) {
+            Object val = updates.get("fats");
+            if (val instanceof Number) meal.setFats(((Number) val).doubleValue());
+        }
+        
         return MealDto.from(mealRepository.save(meal));
     }
 
@@ -105,9 +149,11 @@ public class MealService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
         if (!meal.getUser().getId().equals(user.getId()))
             throw new ResponseStatusException(HttpStatus.FORBIDDEN);
+            
+        // Delete via StorageService
         if (meal.getImageUrl() != null) {
-            String filename = meal.getImageUrl().replace("/uploads/", "");
-            new File(uploadDir + File.separator + filename).delete();
+            String filename = meal.getImageUrl().substring(meal.getImageUrl().lastIndexOf('/') + 1);
+            storageService.delete(String.valueOf(user.getId()), filename);
         }
         mealRepository.delete(meal);
     }
@@ -125,6 +171,36 @@ public class MealService {
         meal.setAnalysisStatus(Meal.AnalysisStatus.COMPLETED);
         if (body.containsKey("mealType")) meal.setMealType(parseMealType((String) body.get("mealType")));
         return MealDto.from(mealRepository.save(meal));
+    }
+
+    public MealDto retryAnalysis(User user, Long id) throws IOException {
+        Meal meal = mealRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Meal not found"));
+        
+        if (!meal.getUser().getId().equals(user.getId()))
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN);
+
+        if (meal.getImageUrl() == null)
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "No image found for this meal");
+
+        // Extract filename from URL (e.g., .../api/images/1/uuid.jpg)
+        String url = meal.getImageUrl();
+        String filename = url.substring(url.lastIndexOf("/") + 1);
+        
+        // Read file bytes
+        org.springframework.core.io.Resource resource = storageService.loadAsResource(String.valueOf(user.getId()), filename);
+        byte[] imageBytes = resource.getInputStream().readAllBytes();
+        String base64 = java.util.Base64.getEncoder().encodeToString(imageBytes);
+
+        // Reset state
+        meal.setName("Analyzing...");
+        meal.setAnalysisStatus(Meal.AnalysisStatus.PENDING);
+        mealRepository.save(meal);
+
+        log.info("Retry: Triggering async AI analysis for meal ID: {}", meal.getId());
+        aiAnalysisService.analyzeMealAsync(meal.getId(), base64, "image/jpeg");
+
+        return MealDto.from(meal);
     }
 
     private Meal.MealType parseMealType(String type) {

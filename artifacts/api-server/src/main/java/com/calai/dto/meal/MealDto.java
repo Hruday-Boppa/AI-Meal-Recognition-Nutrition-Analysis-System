@@ -1,8 +1,10 @@
 package com.calai.dto.meal;
 
 import com.calai.model.Meal;
+import lombok.Data;
 import java.time.LocalDateTime;
 
+@Data
 public class MealDto {
     private Long id;
     private String name;
@@ -37,19 +39,4 @@ public class MealDto {
         dto.loggedAt = meal.getLoggedAt();
         return dto;
     }
-
-    public Long getId() { return id; }
-    public String getName() { return name; }
-    public String getImageUrl() { return imageUrl; }
-    public int getCalories() { return calories; }
-    public double getProtein() { return protein; }
-    public double getCarbs() { return carbs; }
-    public double getFats() { return fats; }
-    public double getHealthScore() { return healthScore; }
-    public double getConfidence() { return confidence; }
-    public String getAnalysisStatus() { return analysisStatus; }
-    public String getMealType() { return mealType; }
-    public String getIngredients() { return ingredients; }
-    public String getNotes() { return notes; }
-    public LocalDateTime getLoggedAt() { return loggedAt; }
 }

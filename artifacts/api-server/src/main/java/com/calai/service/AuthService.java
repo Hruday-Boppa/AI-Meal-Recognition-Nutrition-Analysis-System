@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
 @Service
+@org.springframework.transaction.annotation.Transactional
 public class AuthService {
 
     private final UserRepository userRepository;
