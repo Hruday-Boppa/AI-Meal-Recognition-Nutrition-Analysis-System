@@ -3,7 +3,7 @@ server:
   servlet:
     context-path: /api
 
-DATABASE_URL: "postgresql://postgres:hruday@localhost:5432/postgres"
+DATABASE_URL: ""
 
 spring:
   jpa:
@@ -25,7 +25,7 @@ spring:
 
 app:
   jwt:
-    secret: ${JWT_SECRET:calai-super-secret-key-for-jwt-tokens-minimum-32-chars-long}
+    secret: ${JWT_SECRET:}
     expiration: 86400000
   ollama:
     api-url: ${OLLAMA_API_URL:http://localhost:11434/api/generate}
